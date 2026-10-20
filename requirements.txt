@@ -1,0 +1,9 @@
+langchain
+langchain-ollama
+langchain-core
+langchain-groq
+pandas
+numpy
+matplotlib
+seaborn
+streamlit
