@@ -57,7 +57,12 @@ with col2:
         else:
             with st.spinner("Processing statistical matrices... (Authorize 'yes' in your terminal if prompted!)"):
                 try:
-                    report_output = expert_data_analyst_engine("marketing_sales.csv")
+                    # ─── 🛠️ THE CRITICAL BROWSER ENGINE FIX ──────────────────────────
+                    # Instead of calling it like a raw function, we must use .invoke()
+                    # and pass the input as a structured dictionary format:
+                    report_output = expert_data_analyst_engine.invoke({"csv_filename": "marketing_sales.csv"})
+                    # ────────────────────────────────────────────────────────────────
+                    
                     st.success("✅ Analysis Complete!")
                     st.text_area("📋 Compiled Lead Data Scientist Report:", report_output, height=250)
                     
