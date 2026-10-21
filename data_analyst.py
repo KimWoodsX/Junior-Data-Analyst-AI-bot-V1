@@ -11,10 +11,11 @@ import seaborn as sns
 
 from langchain_ollama import ChatOllama
 from langchain_core.tools import tool
-from langchain.agents import create_agent
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.agents import create_tool_calling_agent, AgentExecutor
 
 print("⚡ Initializing Headless-Safe Data Analyst Backend Architecture...")
-model = ChatOllama(model="llama3.2")
+model = ChatOllama(model="llama3.2", temperature=0.1)
 
 @tool
 def expert_data_analyst_engine(csv_filename: str) -> str:
@@ -93,11 +94,22 @@ def expert_data_analyst_engine(csv_filename: str) -> str:
     except Exception as data_fault:
         return f"[RUNTIME CRITICAL ERROR] Pipeline execution failed: {str(data_fault)}"
 
+# --- 🛠️ MODERN AGENT ORCHESTRATION LAYER FIX ---
 tools = [expert_data_analyst_engine]
-agent = create_agent(model=model, tools=tools)
+
+# Create a prompt structured with placeholder arrays required by modern tool agents
+agent_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are acting as an Advanced Lead Data Scientist. Always use your engine tool first to gather data analytics parameters before writing your final executive report."),
+    MessagesPlaceholder(variable_name="messages"),
+    MessagesPlaceholder(variable_name="agent_scratchpad")
+])
+
+# Assemble the tool calling agent using modern LangChain paradigms
+base_agent = create_tool_calling_agent(model=model, tools=tools, prompt=agent_prompt)
+agent_executor = AgentExecutor(agent=base_agent, tools=tools, verbose=False)
 
 expert_instruction = """
-You are acting as an Advanced Lead Data Scientist. Analyze the local file 'marketing_sales.csv' using your engine tool.
+Analyze the local file 'marketing_sales.csv' using your engine tool.
 When the tool sends back the raw mathematical aggregates and confirmation of charts generation, compile a formal engineering report.
 
 Your report must strictly contain the following explicit sections:
@@ -111,10 +123,12 @@ Ensure all outputs are formatted with clear engineering headers and structured b
 """
 
 print("🚀 Launching Data Analytics Pipeline...")
-pipeline_result = agent.invoke({
-    "messages": [{"role": "user", "content": expert_instruction}]
+# Invoke the modern executor block using standard formatting inputs
+pipeline_result = agent_executor.invoke({
+    "messages": [("user", expert_instruction)]
 })
 
 print("\n📊 === FINAL BACKEND ANALYST REPORT ===")
-print(pipeline_result["messages"][-1].content)
+print(pipeline_result["output"])
 print("=======================================")
+
