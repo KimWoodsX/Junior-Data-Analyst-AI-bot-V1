@@ -2,6 +2,9 @@
 import os
 import pandas as pd
 from data_analyst import expert_data_analyst_engine
+from langchain_ollama import ChatOllama
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
 # --- 1. ENTERPRISE PAGE CONFIGURATION ---
 st.set_page_config(page_title="Local Data Analyst Hub", layout="wide")
@@ -57,18 +60,33 @@ with col2:
         else:
             with st.spinner("Processing statistical matrices... (Authorize 'yes' in your terminal if prompted!)"):
                 try:
-                    # ─── 🛠️ THE CRITICAL BROWSER ENGINE FIX ──────────────────────────
-                    # Instead of calling it like a raw function, we must use .invoke()
-                    # and pass the input as a structured dictionary format:
-                    report_output = expert_data_analyst_engine.invoke({"csv_filename": "marketing_sales.csv"})
-                    # ────────────────────────────────────────────────────────────────
+                    # 1. Run the backend engine tool to generate the raw numbers and plots
+                    raw_tool_payload = expert_data_analyst_engine.invoke({"csv_filename": "marketing_sales.csv"})
+                    
+                    st.info("🧠 Passing statistical vectors to Llama 3.2 for final report synthesis...")
+                    
+                    # 2. Setup the LLM layer to process the raw output into words
+                    model = ChatOllama(model="llama3.2", temperature=0.2)
+                    report_prompt = ChatPromptTemplate.from_messages([
+                        ("system", """You are an Advanced Lead Data Scientist. Take the raw mathematical aggregates provided and compile a formal engineering report.
+                        Your report must strictly contain the following explicit sections:
+                        1. EXECUTIVE DATA SUMMARY
+                        2. CORE DIFFERENTIAL ANALYSIS
+                        3. STATISTICAL OBSERVATIONS (NON-BASIC)
+                        4. CORRELATIONS & RELATIONSHIPS
+                        5. STRATEGIC IN-DEPTH INSIGHTS
+                        Format with clear engineering headers and structured bullet points."""),
+                        ("user", "Directive: {directive}\n\nRaw Data Payload:\n{payload}")
+                    ])
+                    
+                    # 3. Stream through the pipe operator
+                    report_chain = report_prompt | model | StrOutputParser()
+                    final_report = report_chain.invoke({"directive": user_directive, "payload": raw_tool_payload})
                     
                     st.success("✅ Analysis Complete!")
-                    st.text_area("📋 Compiled Lead Data Scientist Report:", report_output, height=250)
+                    st.text_area("📋 Compiled Lead Data Scientist Report:", final_report, height=350)
                     
                     if os.path.exists("advanced_analytics_matrix.png"):
                         st.image("advanced_analytics_matrix.png", caption="Headless Analytics Matrix Profile (2x2 Statistical Grid Output)")
                 except Exception as e:
                     st.error(f"Runtime Pipeline Fault: {e}")
-
-
