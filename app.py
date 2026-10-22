@@ -33,7 +33,7 @@ st.sidebar.markdown("---")
 st.sidebar.write("Infrastructure Status: **Cloud API Inversion Layer Active (Groq Node)**")
 
 # --- 3. MAIN BLOCK AREA: HERO HEADERS ---
-st.title("✨ Enterprise Local Data Analyst & File Co-Pilot")
+st.title("✨ K1 Local Data Analyst & File Co-Pilot")
 st.write("Orchestrating state-of-the-art analytical data pipelines via LangChain Expression Language (LCEL)")
 st.markdown("---")
 
