@@ -69,7 +69,8 @@ with col2:
                     groq_key = st.secrets["GROQ_API_KEY"]
                     
                     # 3. Initialize Groq cloud model layer
-                    model = ChatGroq(model="llama-3.3-70b-specdec", groq_api_key=groq_key, temperature=0.2)
+                    model = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=groq_key, temperature=0.2)
+
                     
                     report_prompt = ChatPromptTemplate.from_messages([
                         ("system", """You are an Advanced Lead Data Scientist. Take the raw mathematical aggregates provided and compile a formal engineering report.
