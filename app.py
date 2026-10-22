@@ -16,9 +16,9 @@ from data_analyst import expert_data_analyst_engine
 # ----------------------------------------------------------------------------
 # CONFIG
 # ----------------------------------------------------------------------------
-# Verify this model ID against your Groq console. Override via secrets/env.
-DEFAULT_MODEL = "qwen/qwen3-32b"
-MAX_PAYLOAD_CHARS = 8000
+# Production model on Groq. Override with GROQ_MODEL in secrets/env.
+DEFAULT_MODEL = "llama-3.3-70b-versatile"
+MAX_PAYLOAD_CHARS = 12000
 MAX_PLOT_ROWS = 20000  # sample above this for speed
 
 CHART_TYPES = [
@@ -118,15 +118,18 @@ def prep_x(df, x):
 
 
 def build_payload(b):
-    text = (
-        "======= DATASET METADATA =======\n"
-        f"Total Records: {b['total_records']}\n"
-        f"Columns: {b['column_layout']}\n\n"
-        "======= SUMMARY STATISTICS =======\n"
-        f"{b['summary_text']}\n\n"
-        "======= CORRELATION MATRIX =======\n"
-        f"{b['correlation_text']}\n"
-    )
+    sections = [
+        ("DATASET METADATA",
+         f"Total Records: {b['total_records']}\nColumns: {b['column_layout']}\n{b.get('skipped_note', '')}"),
+        ("DATA QUALITY", b.get("quality_text")),
+        ("NUMERIC SUMMARY (count/mean/std/min/quartiles/max/skew)", b["summary_text"]),
+        ("CATEGORICAL BREAKDOWN", b.get("categorical_text")),
+        ("GROUP COMPARISONS", b.get("group_text")),
+        ("OUTLIERS", b.get("outlier_text")),
+        ("DATE RANGES", b.get("date_text")),
+        ("CORRELATIONS", b["correlation_text"]),
+    ]
+    text = "\n\n".join(f"======= {t} =======\n{body}" for t, body in sections if body)
     if len(text) > MAX_PAYLOAD_CHARS:
         text = text[:MAX_PAYLOAD_CHARS] + "\n\n[...Truncated...]"
     return text
