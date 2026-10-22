@@ -365,7 +365,16 @@ with col2:
     # Approval gate: payload persists in session state, so this survives reruns.
     if human_approval and st.session_state.payload and not st.session_state.report:
         with st.expander("🔒 Review payload before it leaves your machine", expanded=True):
-            st.code(st.session_state.payload)
+            tab_plain, tab_raw = st.tabs(["📖 Plain-English Summary", "🧾 Raw Payload"])
+            with tab_plain:
+                st.caption("Written locally from your data. This view is not sent to Groq.")
+                st.markdown(
+                    (st.session_state.backend or {}).get("narrative_text")
+                    or "No summary available for this dataset."
+                )
+            with tab_raw:
+                st.caption("Exactly what will be sent to Groq if you approve.")
+                st.code(st.session_state.payload)
         if st.button("✅ Approve & send to Groq", use_container_width=True):
             with st.spinner("Synthesizing report..."):
                 try:
