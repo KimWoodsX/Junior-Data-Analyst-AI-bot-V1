@@ -10,7 +10,7 @@ from langchain_core.output_parsers import StrOutputParser
 
 # --- 1. ENTERPRISE GLOBAL PAGE MATRIX ---
 st.set_page_config(
-    page_title="Enterprise Cloud Data Analyst Hub", 
+    page_title="K1 Cloud Data Analyst Hub", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
