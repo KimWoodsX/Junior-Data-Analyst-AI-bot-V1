@@ -87,6 +87,13 @@ with col2:
                     # 1. Trigger backend engine logic to extract statistical deltas and plot charts
                     raw_payload = expert_data_analyst_engine.invoke({"csv_filename": runtime_csv_target})
                     
+                    # --- payload truncation tool layer to prevent 413 error ---
+                    # 1 token is roughly 4 characters. Slicing at ~18,000 characters ensures the payload stays under ~4,500 tokens.
+                    stringified_payload = str(raw_payload)
+                    if len(stringified_payload) > 18000:
+                        st.warning("⚠️ High Volume Payload Detected: Slicing incoming analytical matrix to fit Groq ITPM constraints safely.")
+                        stringified_payload = stringified_payload[:18000] + "\n\n[...System Notice: Analytical payload truncated due to strict input limits...]"
+                    
                     st.info("🧠 Syncing calculation metrics to Groq infrastructure for final executive synthesis...")
                     
                     # 2. Extract secure environment secrets securely
@@ -111,14 +118,13 @@ with col2:
                     orchestration_chain = report_prompt | model_layer | StrOutputParser()
                     compiled_insights = orchestration_chain.invoke({
                         "directive": user_directive,
-                        "payload": raw_payload
+                        "payload": stringified_payload
                     })
                     
                     st.success("🎯 Analytics Cycle Complete!")
                     st.text_area("📋 Compiled Lead Data Scientist Report:", compiled_insights, height=320)
                     
                     # 5. GARBAGE COLLECTION & CACHE INVALIDATION RULE
-                    # Check for newly generated chart asset, timestamp isolate it, and trash ancient leftovers
                     if os.path.exists("advanced_analytics_matrix.png"):
                         fresh_matrix_id = f"matrix_{st.session_state.session_token}_{int(time.time())}.png"
                         
@@ -138,5 +144,4 @@ if st.session_state.active_matrix_path and os.path.exists(st.session_state.activ
     st.markdown("---")
     st.header("📈 Headless Analytics Matrix Profile (2x2 Statistical Grid Output)")
     st.write(f"Active Grid Asset Token ID: `{st.session_state.active_matrix_path}`")
-    # Force instant browser reload cache clearing via explicit path injection
     st.image(st.session_state.active_matrix_path, use_container_width=True)
