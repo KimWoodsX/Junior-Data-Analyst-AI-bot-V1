@@ -1,3 +1,4 @@
+import hashlib
 import os
 import re
 import time
@@ -91,11 +92,21 @@ def cleanup_old_file():
             pass
 
 
+def clear_dataset():
+    """Wipe the loaded dataset and everything derived from it."""
+    cleanup_old_file()
+    st.session_state.update(
+        file_sig=None, df=None, csv_path=None, backend=None, payload=None, report=None
+    )
+
+
 def ingest(uploaded):
-    """Load the CSV once per distinct upload; reset all derived state."""
-    sig = (uploaded.name, uploaded.size)
+    """Load the CSV once per distinct upload (by content); reset all derived state."""
+    raw = uploaded.getvalue()
+    sig = hashlib.md5(raw).hexdigest()
     if st.session_state.file_sig == sig:
         return
+    uploaded.seek(0)
     df = pd.read_csv(uploaded)
     cleanup_old_file()
     path = os.path.join(
@@ -297,6 +308,8 @@ if uploaded_file is not None:
         ingest(uploaded_file)
     except Exception as e:
         st.sidebar.error(f"🚨 Ingestion fault: {e}")
+elif st.session_state.df is not None:
+    clear_dataset()  # file removed -> old data and graphs must go too
 
 df = st.session_state.df
 
@@ -377,26 +390,27 @@ if df is not None:
     st.header("📈 Interactive Visual Studio")
     nums, cats = split_columns(df)
 
+    fk = (st.session_state.file_sig or "none")[:8]  # widget keys change per dataset
     c1, c2, c3 = st.columns(3)
     with c1:
-        x_axis = st.selectbox("X-Axis / Timeline", df.columns.tolist(), index=0)
-        theme = st.selectbox("Theme", THEMES)
+        x_axis = st.selectbox("X-Axis / Timeline", df.columns.tolist(), index=0, key=f"x_{fk}")
+        theme = st.selectbox("Theme", THEMES, key=f"theme_{fk}")
     with c2:
-        ys = st.multiselect("Numeric features (Y)", nums, default=nums[:2])
-        cat = st.selectbox("Category dimension", cats or df.columns.tolist())
+        ys = st.multiselect("Numeric features (Y)", nums, default=nums[:2], key=f"ys_{fk}")
+        cat = st.selectbox("Category dimension", cats or df.columns.tolist(), key=f"cat_{fk}")
     with c3:
-        color_by = st.selectbox("Color by (scatter/histogram)", ["None"] + cats)
+        color_by = st.selectbox("Color by (scatter/histogram)", ["None"] + cats, key=f"color_{fk}")
 
     tab_studio, tab_gallery = st.tabs(["🎛️ Dual-Panel Studio", "🖼️ Auto Gallery"])
 
     with tab_studio:
         left, right = st.columns(2)
         with left:
-            kind_l = st.selectbox("Left panel", CHART_TYPES, index=0, key="kl")
-            render(kind_l, df, x_axis, ys, cat, color_by, theme, "chart_left")
+            kind_l = st.selectbox("Left panel", CHART_TYPES, index=0, key=f"kl_{fk}")
+            render(kind_l, df, x_axis, ys, cat, color_by, theme, f"chart_left_{fk}")
         with right:
-            kind_r = st.selectbox("Right panel", CHART_TYPES, index=4, key="kr")
-            render(kind_r, df, x_axis, ys, cat, color_by, theme, "chart_right")
+            kind_r = st.selectbox("Right panel", CHART_TYPES, index=4, key=f"kr_{fk}")
+            render(kind_r, df, x_axis, ys, cat, color_by, theme, f"chart_right_{fk}")
 
     with tab_gallery:
         st.caption("Six core views of your data, generated with the current selections.")
@@ -406,4 +420,4 @@ if df is not None:
             ga, gb = st.columns(2)
             for col, kind in zip((ga, gb), gallery[i:i + 2]):
                 with col:
-                    render(kind, df, x_axis, ys, cat, color_by, theme, f"gal_{kind}")
+                    render(kind, df, x_axis, ys, cat, color_by, theme, f"gal_{kind}_{fk}")
