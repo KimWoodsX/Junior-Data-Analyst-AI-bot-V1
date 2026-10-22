@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 import os
 import pandas as pd
 from data_analyst import expert_data_analyst_engine
@@ -7,7 +7,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 # --- 1. ENTERPRISE PAGE CONFIGURATION ---
-st.set_page_config(page_title="Cloud-Powered Analyst Hub", layout="wide")
+st.set_page_config(page_title="Local Data Analyst Hub", layout="wide")
 
 # --- 2. SIDEBAR: CONTROL PANEL WORKSPACE ---
 st.sidebar.title("📁 Control Panel Workspace")
@@ -19,8 +19,8 @@ human_approval = st.sidebar.checkbox("Require Manual Human Approval", value=True
 
 
 # --- 3. MAIN AREA: HERO HEADERS ---
-st.title("✨ Cloud-Powered Junior Data Analyst & File Co-Pilot")
-st.write("Powered by LangChain & Groq Cloud Architecture — 100% Fast, Stable & Hardware Safe")
+st.title("✨ Local Junior Data Analyst & File Co-Pilot")
+st.write("Powered by LangChain & Groq Architecture — 100% Secure Private Workspace")
 st.markdown("---")
 
 # --- 4. TWO-COLUMN OPERATIONAL DASHBOARD LAYOUT ---
@@ -45,7 +45,7 @@ with col1:
 # --- COLUMN 2: AI AGENT CONTROL CENTER ---
 with col2:
     st.header("⚙️ AI Agent Control Center")
-    st.write("Enter analytical directives for your cloud agent:")
+    st.write("Enter analytical directives for your agent:")
     
     user_directive = st.text_area(
         "Directives",
@@ -54,23 +54,18 @@ with col2:
         label_visibility="collapsed"
     )
     
-    if st.button("Execute Pipeline Analysis 🚀", use_container_width=True):
+    execute_pipeline = st.button("Execute Pipeline Analysis 🚀", use_container_width=True)
+    
+    if execute_pipeline:
         if uploaded_file is None and not os.path.exists("marketing_sales.csv"):
             st.error("❌ Execution Aborted: No active dataset matrix located in the workspace.")
         else:
-            with st.spinner("Processing statistical matrices via Groq Cloud..."):
+            with st.spinner("Processing statistical matrices..."):
                 try:
-                    # 1. Run your local pandas/seaborn tool to get raw calculations and graphs
                     raw_tool_payload = expert_data_analyst_engine.invoke({"csv_filename": "marketing_sales.csv"})
                     
-                    st.info("🧠 Streaming statistical parameters to Groq Cloud for instant report synthesis...")
-                    
-                    # 2. Extract your secure API key from your secrets file automatically
                     groq_key = st.secrets["GROQ_API_KEY"]
-                    
-                    # 3. Initialize Groq cloud model layer
                     model = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=groq_key, temperature=0.2)
-
                     
                     report_prompt = ChatPromptTemplate.from_messages([
                         ("system", """You are an Advanced Lead Data Scientist. Take the raw mathematical aggregates provided and compile a formal engineering report.
@@ -88,9 +83,13 @@ with col2:
                     final_report = report_chain.invoke({"directive": user_directive, "payload": raw_tool_payload})
                     
                     st.success("✅ Analysis Complete!")
-                    st.text_area("📋 Compiled Lead Data Scientist Report:", final_report, height=250)
-                    
-                    if os.path.exists("advanced_analytics_matrix.png"):
-                        st.image("advanced_analytics_matrix.png", caption="Headless Analytics Matrix Profile (2x2 Statistical Grid Output)")
+                    st.text_area("📋 Compiled Lead Data Scientist Report:", final_report, height=300)
                 except Exception as e:
                     st.error(f"Runtime Pipeline Fault: {e}")
+
+# --- 5. FULL-WIDTH VISUALIZATION GRID DISPLAY ---
+# This breaks out of the column containers to render your charts across the entire screen width
+if os.path.exists("advanced_analytics_matrix.png"):
+    st.markdown("---")
+    st.header("📈 Headless Analytics Matrix Profile (2x2 Statistical Grid Output)")
+    st.image("advanced_analytics_matrix.png", use_container_width=True)
