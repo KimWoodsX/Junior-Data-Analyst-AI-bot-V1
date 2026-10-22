@@ -1,3 +1,4 @@
+
 import os
 import numpy as np
 import pandas as pd
@@ -11,11 +12,10 @@ import seaborn as sns
 
 from langchain_ollama import ChatOllama
 from langchain_core.tools import tool
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
 print("⚡ Initializing Headless-Safe Data Analyst Backend Architecture...")
-model = ChatOllama(model="llama3.2", temperature=0.1)
 
 @tool
 def expert_data_analyst_engine(csv_filename: str) -> str:
@@ -94,41 +94,14 @@ def expert_data_analyst_engine(csv_filename: str) -> str:
     except Exception as data_fault:
         return f"[RUNTIME CRITICAL ERROR] Pipeline execution failed: {str(data_fault)}"
 
-# --- 🛠️ MODERN AGENT ORCHESTRATION LAYER FIX ---
-tools = [expert_data_analyst_engine]
 
-# Create a prompt structured with placeholder arrays required by modern tool agents
-agent_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are acting as an Advanced Lead Data Scientist. Always use your engine tool first to gather data analytics parameters before writing your final executive report."),
-    MessagesPlaceholder(variable_name="messages"),
-    MessagesPlaceholder(variable_name="agent_scratchpad")
+# ─── VERSION-PROOF VERSION-INDEPENDENT LCEL CHAIN ────────────────────────
+model = ChatOllama(model="llama3.2", temperature=0.1)
+
+analyst_prompt = ChatPromptTemplate.from_messages([
+    ("system", """You are acting as an Advanced Lead Data Scientist. Take the raw mathematical aggregates provided and compile a formal engineering report."""),
+    ("user", "{topic}")
 ])
 
-# Assemble the tool calling agent using modern LangChain paradigms
-base_agent = create_tool_calling_agent(model=model, tools=tools, prompt=agent_prompt)
-agent_executor = AgentExecutor(agent=base_agent, tools=tools, verbose=False)
-
-expert_instruction = """
-Analyze the local file 'marketing_sales.csv' using your engine tool.
-When the tool sends back the raw mathematical aggregates and confirmation of charts generation, compile a formal engineering report.
-
-Your report must strictly contain the following explicit sections:
-1. EXECUTIVE DATA SUMMARY: State what the data structurally represents.
-2. CORE DIFFERENTIAL ANALYSIS: Highlight the specific, quantified numerical differences between tracking variables.
-3. STATISTICAL OBSERVATIONS (NON-BASIC): Identify anomalies, feature variance, and skewness. Do not state obvious or basic points.
-4. CORRELATIONS & RELATIONSHIPS: Detail how variables interact based on mathematical dependencies.
-5. STRATEGIC IN-DEPTH INSIGHTS: Provide advanced conclusions regarding trends or patterns observed across cycles.
-
-Ensure all outputs are formatted with clear engineering headers and structured bullet points.
-"""
-
-print("🚀 Launching Data Analytics Pipeline...")
-# Invoke the modern executor block using standard formatting inputs
-pipeline_result = agent_executor.invoke({
-    "messages": [("user", expert_instruction)]
-})
-
-print("\n📊 === FINAL BACKEND ANALYST REPORT ===")
-print(pipeline_result["output"])
-print("=======================================")
-
+agent_chain = analyst_prompt | model | StrOutputParser()
+# ─────────────────────────────────────────────────────────────────────────
