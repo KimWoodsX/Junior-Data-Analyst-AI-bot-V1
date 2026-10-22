@@ -134,7 +134,7 @@ DATASET PAYLOAD:
                 except Exception as runtime_fault:
                     st.error(f"🚨 Cloud Pipeline Exception: {runtime_fault}")
 
-# --- 5. HIGH-RESOLUTION FULL-WIDTH VISUAL DISPLAY BLOCK (PLOTLY UPGRADE) ---
+# --- 5. HIGH-RESOLUTION FULL-WIDTH VISUAL DISPLAY BLOCK (FIXED PLOTLY COERCE) ---
 if st.session_state.active_matrix_data and uploaded_file is not None:
     st.markdown("---")
     st.header("📈 Interactive Analytics Matrix Profile (Fluid Dynamic Grid Output)")
@@ -150,12 +150,12 @@ if st.session_state.active_matrix_data and uploaded_file is not None:
     with v_col1:
         # 1. Continuous Trend Chart
         fig_trend = px.line(plot_df, x=time_ax, y=cols[:3], title="1. Continuous Trend Over Time Matrix", markers=True)
-        fig_trend.update_layout(template="white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+        fig_trend.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_trend, use_container_width=True)
         
         # 2. Statistical Distribution Chart
-        fig_dist = px.histogram(plot_df, x=cols[:2], barmode="overlay", title="3. Distribution Density Profile", marginal="rug")
-        fig_dist.update_layout(template="white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+        fig_dist = px.histogram(plot_df, x=cols[:2], barmode="overlay", title="3. Distribution Density Profile")
+        fig_dist.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_dist, use_container_width=True)
 
     with v_col2:
@@ -163,12 +163,11 @@ if st.session_state.active_matrix_data and uploaded_file is not None:
         mean_df = plot_df[cols].mean().reset_index()
         mean_df.columns = ["Feature", "Mean Magnitude"]
         fig_bar = px.bar(mean_df, x="Feature", y="Mean Magnitude", color="Feature", title="2. Dimension Comparison Matrix")
-        fig_bar.update_layout(template="white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-        st.sidebar.markdown("") # Layout buffer placeholder anchor
+        fig_bar.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_bar, use_container_width=True)
         
         # 4. Dimensional Scatter Chart
         fig_scatter = px.scatter(plot_df, x=cols[0], y=cols[1], title=f"4. Dimensional Relationship ({cols[0]} vs {cols[1]})")
-        fig_scatter.update_layout(template="white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+        fig_scatter.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
         fig_scatter.update_traces(marker=dict(size=12, symbol="diamond", color="crimson"))
         st.plotly_chart(fig_scatter, use_container_width=True)
