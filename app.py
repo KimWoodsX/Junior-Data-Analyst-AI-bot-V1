@@ -1,55 +1,75 @@
 import streamlit as st
 import os
+import glob
+import time
 import pandas as pd
 from data_analyst import expert_data_analyst_engine
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-# --- 1. ENTERPRISE PAGE CONFIGURATION ---
-st.set_page_config(page_title="Local Data Analyst Hub", layout="wide")
+# --- 1. ENTERPRISE GLOBAL PAGE MATRIX ---
+st.set_page_config(
+    page_title="Enterprise Cloud Data Analyst Hub", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# --- 2. SIDEBAR: CONTROL PANEL WORKSPACE ---
+# Initialize unique runtime state monitoring tokens to track visual files across sessions
+if "session_token" not in st.session_state:
+    st.session_state.session_token = str(int(time.time()))
+if "active_matrix_path" not in st.session_state:
+    st.session_state.active_matrix_path = None
+
+# --- 2. SIDEBAR CONTROL PANELS: SECURE INGESTION LAYER ---
 st.sidebar.title("📁 Control Panel Workspace")
-st.sidebar.write("Upload analytical workspace datasets (CSV only)")
+st.sidebar.write("Ingest structured data arrays securely (CSV formatting only).")
 
 uploaded_file = st.sidebar.file_uploader("Upload", type=["csv"], label_visibility="collapsed")
 st.sidebar.text_input("🔍 Search active folder workspace", placeholder="Search filenames...")
 human_approval = st.sidebar.checkbox("Require Manual Human Approval", value=True)
 
+st.sidebar.markdown("---")
+st.sidebar.write("Infrastructure Status: **Cloud API Inversion Layer Active (Groq Node)**")
 
-# --- 3. MAIN AREA: HERO HEADERS ---
-st.title("✨ Local Junior Data Analyst & File Co-Pilot")
-st.write("Powered by LangChain & Groq Architecture — 100% Secure Private Workspace")
+# --- 3. MAIN BLOCK AREA: HERO HEADERS ---
+st.title("✨ Enterprise Local Data Analyst & File Co-Pilot")
+st.write("Orchestrating state-of-the-art analytical data pipelines via LangChain Expression Language (LCEL)")
 st.markdown("---")
 
-# --- 4. TWO-COLUMN OPERATIONAL DASHBOARD LAYOUT ---
 col1, col2 = st.columns([0.5, 0.5])
 
-# --- COLUMN 1: ACTIVE DATASET PREVIEW ---
+# Defensive initialization tracking token
+runtime_csv_target = None
+
+# --- COLUMN 1: ACTIVE DATASET ISOLATION & PREVIEW ---
 with col1:
     st.header("📊 Active Dataset Preview")
     if uploaded_file is not None:
         try:
+            # Synchronize thread to read the uploaded data buffer metrics safely
             df = pd.read_csv(uploaded_file)
-            st.success(f"✅ Previewing: {uploaded_file.name} ({len(df)} records discovered)")
-            st.dataframe(df.head(10), use_container_width=True)
+            st.success(f"📦 Source Data Ingested: '{uploaded_file.name}' — Discovered {len(df)} discrete matrices.")
+            st.dataframe(df.head(12), use_container_width=True)
             
-            with open("marketing_sales.csv", "wb") as f:
-                f.write(uploaded_file.getbuffer())
-        except Exception as file_error:
-            st.error(f"Error reading file parameters: {file_error}")
+            # Formulate a bulletproof path bound strictly to this individual file entity
+            runtime_csv_target = f"secure_target_{st.session_state.session_token}.csv"
+            with open(runtime_csv_target, "wb") as secure_stream:
+                secure_stream.write(uploaded_file.getbuffer())
+                
+        except Exception as ingestion_error:
+            st.error(f"🚨 Structural Ingestion Fault: Unable to parse binary headers. Details: {ingestion_error}")
     else:
-        st.info("💡 Please upload a .csv file in the left control panel sidebar to preview your dataset.")
+        st.info("💡 Storage Core Standby: Please upload a .csv data array in the sidebar container to initialize validation.")
 
-# --- COLUMN 2: AI AGENT CONTROL CENTER ---
+# --- COLUMN 2: ANALYTICAL AGENT CONTROL SYSTEM ---
 with col2:
     st.header("⚙️ AI Agent Control Center")
-    st.write("Enter analytical directives for your agent:")
+    st.write("Transmit high-priority optimization directives to your analytics execution layer:")
     
     user_directive = st.text_area(
         "Directives",
-        placeholder="e.g., Run an advanced analytics operation on marketing_sales.csv...",
+        placeholder="e.g., Run a deep statistical variance audit on the active rows, map feature correlations, and output the visual arrays.",
         height=150,
         label_visibility="collapsed"
     )
@@ -57,39 +77,66 @@ with col2:
     execute_pipeline = st.button("Execute Pipeline Analysis 🚀", use_container_width=True)
     
     if execute_pipeline:
-        if uploaded_file is None and not os.path.exists("marketing_sales.csv"):
-            st.error("❌ Execution Aborted: No active dataset matrix located in the workspace.")
+        if runtime_csv_target is None or not os.path.exists(runtime_csv_target):
+            st.error("❌ Execution Refused: The processing matrix pipeline is empty. Upload a CSV source array first.")
+        elif not user_directive.strip():
+            st.warning("⚠️ Direction Missing: Please provide explicit text instructions for the model layers to compile.")
         else:
-            with st.spinner("Processing statistical matrices..."):
+            with st.spinner("Processing deep analytical arrays via high-speed cloud nodes..."):
                 try:
-                    raw_tool_payload = expert_data_analyst_engine.invoke({"csv_filename": "marketing_sales.csv"})
+                    # 1. Trigger backend engine logic to extract statistical deltas and plot charts
+                    raw_payload = expert_data_analyst_engine.invoke({"csv_filename": runtime_csv_target})
                     
-                    groq_key = st.secrets["GROQ_API_KEY"]
-                    model = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=groq_key, temperature=0.2)
+                    st.info("🧠 Syncing calculation metrics to Groq infrastructure for final executive synthesis...")
+                    
+                    # 2. Extract secure environment secrets securely
+                    groq_vault_key = st.secrets["GROQ_API_KEY"]
+                    
+                    # 3. Spin up high-performance inference engine layer
+                    model_layer = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=groq_vault_key, temperature=0.1)
                     
                     report_prompt = ChatPromptTemplate.from_messages([
-                        ("system", """You are an Advanced Lead Data Scientist. Take the raw mathematical aggregates provided and compile a formal engineering report.
+                        ("system", """You are acting as an Advanced Lead Data Scientist. Take the raw mathematical aggregates provided and compile a formal engineering report.
                         Your report must strictly contain the following explicit sections:
-                        1. EXECUTIVE DATA SUMMARY
-                        2. CORE DIFFERENTIAL ANALYSIS
-                        3. STATISTICAL OBSERVATIONS (NON-BASIC)
-                        4. CORRELATIONS & RELATIONSHIPS
-                        5. STRATEGIC IN-DEPTH INSIGHTS
-                        Format with clear engineering headers and structured bullet points."""),
-                        ("user", "Directive: {directive}\n\nRaw Data Payload:\n{payload}")
+                        1. EXECUTIVE DATA SUMMARY: State what the data structurally represents.
+                        2. CORE DIFFERENTIAL ANALYSIS: Highlight the specific, quantified numerical differences between tracking variables.
+                        3. STATISTICAL OBSERVATIONS (NON-BASIC): Identify anomalies, feature variance, and skewness. Do not state obvious or basic points.
+                        4. CORRELATIONS & RELATIONSHIPS: Detail how variables interact based on mathematical dependencies.
+                        5. STRATEGIC IN-DEPTH INSIGHTS: Provide advanced conclusions regarding trends or patterns observed across cycles.
+                        Ensure all outputs are formatted with clear engineering headers and structured bullet points."""),
+                        ("user", "User Directive Parameters: {directive}\n\nRaw Computed Mathematical Payload:\n{payload}")
                     ])
                     
-                    report_chain = report_prompt | model | StrOutputParser()
-                    final_report = report_chain.invoke({"directive": user_directive, "payload": raw_tool_payload})
+                    # 4. Invoke secure operational LCEL completion pipeline
+                    orchestration_chain = report_prompt | model_layer | StrOutputParser()
+                    compiled_insights = orchestration_chain.invoke({
+                        "directive": user_directive,
+                        "payload": raw_payload
+                    })
                     
-                    st.success("✅ Analysis Complete!")
-                    st.text_area("📋 Compiled Lead Data Scientist Report:", final_report, height=300)
-                except Exception as e:
-                    st.error(f"Runtime Pipeline Fault: {e}")
+                    st.success("🎯 Analytics Cycle Complete!")
+                    st.text_area("📋 Compiled Lead Data Scientist Report:", compiled_insights, height=320)
+                    
+                    # 5. GARBAGE COLLECTION & CACHE INVALIDATION RULE
+                    # Check for newly generated chart asset, timestamp isolate it, and trash ancient leftovers
+                    if os.path.exists("advanced_analytics_matrix.png"):
+                        fresh_matrix_id = f"matrix_{st.session_state.session_token}_{int(time.time())}.png"
+                        
+                        # Purge stale historical images from the file storage to prevent memory overflow
+                        for stale_chart in glob.glob("matrix_*.png"):
+                            try: os.remove(stale_chart)
+                            except: pass
+                            
+                        os.rename("advanced_analytics_matrix.png", fresh_matrix_id)
+                        st.session_state.active_matrix_path = fresh_matrix_id
+                        
+                except Exception as runtime_fault:
+                    st.error(f"🚨 Runtime Pipeline Exception: {runtime_fault}")
 
-# --- 5. FULL-WIDTH VISUALIZATION GRID DISPLAY ---
-# This breaks out of the column containers to render your charts across the entire screen width
-if os.path.exists("advanced_analytics_matrix.png"):
+# --- 5. HIGH-RESOLUTION FULL-WIDTH VISUAL DISPLAY BLOCK ---
+if st.session_state.active_matrix_path and os.path.exists(st.session_state.active_matrix_path):
     st.markdown("---")
     st.header("📈 Headless Analytics Matrix Profile (2x2 Statistical Grid Output)")
-    st.image("advanced_analytics_matrix.png", use_container_width=True)
+    st.write(f"Active Grid Asset Token ID: `{st.session_state.active_matrix_path}`")
+    # Force instant browser reload cache clearing via explicit path injection
+    st.image(st.session_state.active_matrix_path, use_container_width=True)
