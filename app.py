@@ -32,7 +32,7 @@ st.sidebar.markdown("---")
 st.sidebar.write("Infrastructure Status: **Cloud API Inversion Layer Active (Groq Node)**")
 
 # --- 3. MAIN BLOCK AREA ---
-st.title("✨ Junior K1 Local Data Analyst Bot")
+st.title("✨ Enterprise Local Data Analyst & File Co-Pilot")
 st.write("Orchestrating state-of-the-art analytical data pipelines via LangChain Expression Language (LCEL)")
 st.markdown("---")
 
@@ -134,40 +134,57 @@ DATASET PAYLOAD:
                 except Exception as runtime_fault:
                     st.error(f"🚨 Cloud Pipeline Exception: {runtime_fault}")
 
-# --- 5. HIGH-RESOLUTION FULL-WIDTH VISUAL DISPLAY BLOCK (FIXED PLOTLY COERCE) ---
+# --- 5. HIGH-RESOLUTION FULL-WIDTH VISUAL DISPLAY BLOCK (FULLY DYNAMIC LAYER) ---
 if st.session_state.active_matrix_data and uploaded_file is not None:
     st.markdown("---")
-    st.header("📈 Interactive Analytics Matrix Profile (Fluid Dynamic Grid Output)")
+    st.header("📈 Interactive Analytics Matrix Profile (Fully Customizable Grid Output)")
     
     meta = st.session_state.active_matrix_data
     plot_df = pd.read_csv(meta["file_path"])
-    cols = meta["numeric_columns"]
-    time_ax = meta["time_axis"]
+    all_cols = meta["column_layout"]
+    num_cols = meta["numeric_columns"]
     
-    # Render dynamic grid partitions natively
+    # 🎛️ NEW: DYNAMIC USER CONTROL PANELS
+    st.markdown("### 🎛️ Chart Layout Controls")
+    ctrl_col1, ctrl_col2, ctrl_col3 = st.columns(3)
+    
+    with ctrl_col1:
+        selected_x_axis = st.selectbox("Select X-Axis (Timeline / Base Dimension)", options=all_cols, index=0)
+    with ctrl_col2:
+        selected_y_features = st.multiselect("Select Trend Line Features (Y-Axis)", options=num_cols, default=num_cols[:2])
+    with ctrl_col3:
+        scatter_target_y = st.selectbox("Select Scatter Target Variable (Y-Axis)", options=num_cols, index=min(1, len(num_cols)-1))
+
+    st.markdown("---")
+    
+    # Render dynamic grid partitions natively based on widget selections
     v_col1, v_col2 = st.columns(2)
     
     with v_col1:
-        # 1. Continuous Trend Chart
-        fig_trend = px.line(plot_df, x=time_ax, y=cols[:3], title="1. Continuous Trend Over Time Matrix", markers=True)
-        fig_trend.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(fig_trend, use_container_width=True)
+        # 1. Continuous Trend Chart (Fully Dynamic)
+        if selected_y_features:
+            fig_trend = px.line(plot_df, x=selected_x_axis, y=selected_y_features, title=f"1. Dynamic Trend: Custom Dimensions over {selected_x_axis}", markers=True)
+            fig_trend.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig_trend, use_container_width=True)
+        else:
+            st.warning("⚠️ Please select at least one feature for the Trend Line chart.")
         
-        # 2. Statistical Distribution Chart
-        fig_dist = px.histogram(plot_df, x=cols[:2], barmode="overlay", title="3. Distribution Density Profile")
+        # 2. Statistical Distribution Chart (Fully Dynamic)
+        fig_dist = px.histogram(plot_df, x=selected_y_features if selected_y_features else num_cols[:1], barmode="overlay", title="3. Distribution Density Profile")
         fig_dist.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_dist, use_container_width=True)
 
     with v_col2:
-        # 3. Dimension Comparison Chart
-        mean_df = plot_df[cols].mean().reset_index()
+        # 3. Dimension Comparison Chart (Fully Dynamic)
+        features_to_average = selected_y_features if selected_y_features else num_cols
+        mean_df = plot_df[features_to_average].mean().reset_index()
         mean_df.columns = ["Feature", "Mean Magnitude"]
-        fig_bar = px.bar(mean_df, x="Feature", y="Mean Magnitude", color="Feature", title="2. Dimension Comparison Matrix")
+        fig_bar = px.bar(mean_df, x="Feature", y="Mean Magnitude", color="Feature", title="2. Dimension Comparison Matrix (Active Selections)")
         fig_bar.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_bar, use_container_width=True)
         
-        # 4. Dimensional Scatter Chart
-        fig_scatter = px.scatter(plot_df, x=cols[0], y=cols[1], title=f"4. Dimensional Relationship ({cols[0]} vs {cols[1]})")
+        # 4. Dimensional Scatter Chart (Fully Dynamic)
+        fig_scatter = px.scatter(plot_df, x=selected_x_axis, y=scatter_target_y, title=f"4. Dimensional Relationship ({selected_x_axis} vs {scatter_target_y})")
         fig_scatter.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
         fig_scatter.update_traces(marker=dict(size=12, symbol="diamond", color="crimson"))
         st.plotly_chart(fig_scatter, use_container_width=True)
