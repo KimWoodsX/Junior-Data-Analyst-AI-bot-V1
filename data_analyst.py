@@ -74,9 +74,16 @@ def _corr_pairs(df: pd.DataFrame, cols: list) -> list:
     return out
 
 
+SOLAR_NAMES = {"solarradiation", "solarenergy", "uvindex"}      # one sunlight signal, three units
+DERIVED_NAMES = {"dew", "dewpoint", "heatindex", "windchill"}   # computed from other columns
+
+
 def _family(name) -> str:
     """Columns measuring the same thing (temp / tempmax / feelslikemin ...) share a family."""
-    n = str(name).lower().replace("feelslike", "temp")
+    n = str(name).lower()
+    if n in SOLAR_NAMES:
+        return "solar"
+    n = n.replace("feelslike", "temp")
     return re.sub(r"(max|min|avg|mean)$", "", n).strip("_ -")
 
 
@@ -84,7 +91,8 @@ def _split_pairs(pairs: list):
     """(genuine pairs, redundant pairs). Redundant = near-identical OR same measure family."""
     real, redundant = [], []
     for a, b, r in pairs:
-        if abs(r) >= REDUNDANT_R or _family(a) == _family(b):
+        if (abs(r) >= REDUNDANT_R or _family(a) == _family(b)
+                or str(a).lower() in DERIVED_NAMES or str(b).lower() in DERIVED_NAMES):
             redundant.append((a, b, r))
         else:
             real.append((a, b, r))
@@ -96,6 +104,8 @@ def _outlier_counts(df: pd.DataFrame, cols: list) -> dict:
     where 'outliers' are just normal behaviour."""
     res = {}
     for c in cols:
+        if re.search(r"dir|phase|moon", str(c), re.I):   # circular/cyclic: IQR is meaningless
+            continue
         s = df[c].dropna()
         if len(s) < 8 or (s == 0).mean() > 0.5:
             continue
@@ -274,7 +284,7 @@ def _narrative(df, numeric_cols, text_cols, date_cols, id_cols, skipped, group_c
     cat_sents = []
     for col in text_cols:
         s = df[col].dropna().astype(str)
-        if s.empty or s.str.len().mean() > MAX_TEXT_LEN or s.nunique() > MAX_CAT_UNIQUE:
+        if s.empty or s.str.len().mean() > 40 or s.nunique() > MAX_GROUP_UNIQUE:
             continue
         vc = s.value_counts()
         if s.nunique() == 1:
