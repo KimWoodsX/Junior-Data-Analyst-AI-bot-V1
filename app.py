@@ -82,37 +82,37 @@ with col2:
         elif not user_directive.strip():
             st.warning("⚠️ Direction Missing: Please provide explicit text instructions for the model layers to compile.")
         else:
-            with st.spinner("Processing deep analytical arrays via high-speed cloud nodes..."):
+            with st.spinner("Processing deep analytical arrays via high-speed Groq cloud nodes..."):
                 try:
                     # 1. Trigger backend engine logic to extract statistical deltas and plot charts
                     raw_payload = expert_data_analyst_engine.invoke({"csv_filename": runtime_csv_target})
                     
-                    # --- payload truncation tool layer to prevent 413 error ---
-                    # 1 token is roughly 4 characters. Slicing at ~18,000 characters ensures the payload stays under ~4,500 tokens.
+                    # --- AGGRESSIVE TRUE-CLOUD PAYLOAD TRUNCATION ---
+                    # Slicing at 8000 characters caps data text at ~2,000 tokens, crushing the 413 exception.
                     stringified_payload = str(raw_payload)
-                    if len(stringified_payload) > 18000:
-                        st.warning("⚠️ High Volume Payload Detected: Slicing incoming analytical matrix to fit Groq ITPM constraints safely.")
-                        stringified_payload = stringified_payload[:18000] + "\n\n[...System Notice: Analytical payload truncated due to strict input limits...]"
+                    if len(stringified_payload) > 8000:
+                        stringified_payload = stringified_payload[:8000] + "\n\n[...System Warning: Analytical matrix truncated for cloud constraints...]"
                     
-                    st.info("🧠 Syncing calculation metrics to Groq infrastructure for final executive synthesis...")
+                    st.info("🧠 Syncing metrics to cloud infrastructure for executive synthesis...")
                     
                     # 2. Extract secure environment secrets securely
                     groq_vault_key = st.secrets["GROQ_API_KEY"]
                     
-                    # 3. Spin up high-performance inference engine layer
+                    # 3. Spin up high-performance cloud inference layer
                     model_layer = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=groq_vault_key, temperature=0.1)
                     
-                    report_prompt = ChatPromptTemplate.from_messages([
-                        ("system", """You are acting as an Advanced Lead Data Scientist. Take the raw mathematical aggregates provided and compile a formal engineering report.
-                        Your report must strictly contain the following explicit sections:
-                        1. EXECUTIVE DATA SUMMARY: State what the data structurally represents.
-                        2. CORE DIFFERENTIAL ANALYSIS: Highlight the specific, quantified numerical differences between tracking variables.
-                        3. STATISTICAL OBSERVATIONS (NON-BASIC): Identify anomalies, feature variance, and skewness. Do not state obvious or basic points.
-                        4. CORRELATIONS & RELATIONSHIPS: Detail how variables interact based on mathematical dependencies.
-                        5. STRATEGIC IN-DEPTH INSIGHTS: Provide advanced conclusions regarding trends or patterns observed across cycles.
-                        Ensure all outputs are formatted with clear engineering headers and structured bullet points."""),
-                        ("user", "User Directive Parameters: {directive}\n\nRaw Computed Mathematical Payload:\n{payload}")
-                    ])
+                    # --- FLAT SYSTEM PROMPT DESIGN (Reduces invisible token overhead) ---
+                    report_prompt = ChatPromptTemplate.from_template("""SYSTEM: You are a Lead Data Scientist. Compile a concise engineering report using the following headers and bullets:
+1. EXECUTIVE DATA SUMMARY
+2. CORE DIFFERENTIAL ANALYSIS (Quantified values)
+3. STATISTICAL OBSERVATIONS (Non-basic variance/skewness)
+4. CORRELATIONS & RELATIONSHIPS
+5. STRATEGIC INSIGHTS
+
+USER DIRECTIVE: {directive}
+
+DATASET PAYLOAD:
+{payload}""")
                     
                     # 4. Invoke secure operational LCEL completion pipeline
                     orchestration_chain = report_prompt | model_layer | StrOutputParser()
@@ -121,23 +121,20 @@ with col2:
                         "payload": stringified_payload
                     })
                     
-                    st.success("🎯 Analytics Cycle Complete!")
+                    st.success("🎯 Cloud Analytics Cycle Complete!")
                     st.text_area("📋 Compiled Lead Data Scientist Report:", compiled_insights, height=320)
                     
                     # 5. GARBAGE COLLECTION & CACHE INVALIDATION RULE
                     if os.path.exists("advanced_analytics_matrix.png"):
                         fresh_matrix_id = f"matrix_{st.session_state.session_token}_{int(time.time())}.png"
-                        
-                        # Purge stale historical images from the file storage to prevent memory overflow
                         for stale_chart in glob.glob("matrix_*.png"):
                             try: os.remove(stale_chart)
                             except: pass
-                            
                         os.rename("advanced_analytics_matrix.png", fresh_matrix_id)
                         st.session_state.active_matrix_path = fresh_matrix_id
                         
                 except Exception as runtime_fault:
-                    st.error(f"🚨 Runtime Pipeline Exception: {runtime_fault}")
+                    st.error(f"🚨 Cloud Pipeline Exception: {runtime_fault}")
 
 # --- 5. HIGH-RESOLUTION FULL-WIDTH VISUAL DISPLAY BLOCK ---
 if st.session_state.active_matrix_path and os.path.exists(st.session_state.active_matrix_path):
