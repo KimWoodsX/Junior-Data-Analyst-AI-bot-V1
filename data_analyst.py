@@ -23,7 +23,6 @@ def expert_data_analyst_engine(csv_filename: str) -> str:
     and extracts statistical variance insights without basic reasoning.
     """
     # ─── 🛡️ CLOUD-OPTIMIZED AUTOMATED SECURITY GUARDRAIL ───────────────────
-    # Removed the interactive terminal input() hook so it never freezes your live website
     print(f"📦 Cloud Data Pipeline verified and authorized for: '{csv_filename}'")
     # ──────────────────────────────────────────────────────────────────────────
 
@@ -76,15 +75,23 @@ def expert_data_analyst_engine(csv_filename: str) -> str:
         plt.savefig(output_chart_path, dpi=300, bbox_inches='tight')
         plt.close(fig)  # Explicitly clear graphic context memory
 
-        summary_statistics = df[numeric_cols].describe()
-        correlation_matrix = df[numeric_cols].corr()
+        # --- OPTIMIZED COMPACT PAYLOAD FORMATTING ---
+        # Using .to_string() cleans up JSON-like dict syntax and formats stats elegantly for the LLM
+        summary_str = df[numeric_cols].describe().to_string()
+        correlation_str = df[numeric_cols].corr().to_string()
         
-        insights_payload = {
-            "file_metadata": {"total_records": len(df), "dimensions": list(df.columns)},
-            "statistical_deltas": summary_statistics.to_dict(),
-            "correlation_coefficients": correlation_matrix.to_dict(),
-            "visual_status": f"Charts saved successfully as {output_chart_path}"
-        }
+        insights_payload = f"""
+======= DATASET METADATA =======
+Total Records Isolation: {len(df)}
+Discovered Column Layout: {list(df.columns)}
+Visual Infrastructure: Charts saved successfully as {output_chart_path}
+
+======= SUMMARY STATISTICS =======
+{summary_str}
+
+======= CORRELATION MATRIX COEFFS =======
+{correlation_str}
+"""
         return f"[SYSTEM EXECUTION OUTPUT]\nData Payload sent to LLM for final report assembly:\n{insights_payload}"
 
     except Exception as data_fault:
