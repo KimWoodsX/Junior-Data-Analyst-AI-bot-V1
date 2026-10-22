@@ -1,190 +1,406 @@
-import streamlit as st
 import os
+import re
 import time
+import tempfile
+
 import pandas as pd
 import plotly.express as px
-from data_analyst import expert_data_analyst_engine
-from langchain_groq import ChatGroq
-from langchain_core.prompts import ChatPromptTemplate
+import plotly.graph_objects as go
+import streamlit as st
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_groq import ChatGroq
 
-# --- 1. ENTERPRISE GLOBAL PAGE MATRIX ---
+from data_analyst import expert_data_analyst_engine
+
+# ----------------------------------------------------------------------------
+# CONFIG
+# ----------------------------------------------------------------------------
+# Verify this model ID against your Groq console. Override via secrets/env.
+DEFAULT_MODEL = "qwen/qwen3-32b"
+MAX_PAYLOAD_CHARS = 8000
+MAX_PLOT_ROWS = 20000  # sample above this for speed
+
+CHART_TYPES = [
+    "Line Trend",
+    "Area Trend",
+    "Bar (Feature Means)",
+    "Grouped Bar (by Category)",
+    "Box (Outliers)",
+    "Violin (Distribution)",
+    "Scatter (Relationship)",
+    "Histogram",
+    "Donut",
+    "Sunburst",
+    "Correlation Heatmap",
+    "Missing Values",
+]
+THEMES = ["plotly_white", "simple_white", "seaborn", "ggplot2", "plotly_dark"]
+
 st.set_page_config(
-    page_title="Enterprise Cloud Data Analyst Hub", 
+    page_title="Enterprise Cloud Data Analyst Hub",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-if "session_token" not in st.session_state:
-    st.session_state.session_token = str(int(time.time()))
-if "active_matrix_data" not in st.session_state:
-    st.session_state.active_matrix_data = None
+# ----------------------------------------------------------------------------
+# SESSION STATE
+# ----------------------------------------------------------------------------
+defaults = {
+    "session_token": str(int(time.time())),
+    "file_sig": None,
+    "df": None,
+    "csv_path": None,
+    "backend": None,
+    "payload": None,
+    "report": None,
+}
+for k, v in defaults.items():
+    st.session_state.setdefault(k, v)
 
-# --- 2. SIDEBAR CONTROL PANELS ---
-st.sidebar.title("📁 Control Panel Workspace")
-st.sidebar.write("Ingest structured data arrays securely (CSV formatting only).")
 
-uploaded_file = st.sidebar.file_uploader("Upload", type=["csv"], label_visibility="collapsed")
-st.sidebar.text_input("🔍 Search active folder workspace", placeholder="Search filenames...")
-human_approval = st.sidebar.checkbox("Require Manual Human Approval", value=True)
+# ----------------------------------------------------------------------------
+# HELPERS
+# ----------------------------------------------------------------------------
+def get_api_key():
+    try:
+        return st.secrets["GROQ_API_KEY"]
+    except Exception:
+        return os.environ.get("GROQ_API_KEY")
 
-st.sidebar.markdown("---")
-st.sidebar.write("Infrastructure Status: **Cloud API Inversion Layer Active (Groq Node)**")
 
-# --- 3. MAIN BLOCK AREA ---
-st.title("✨ Enterprise Local Data Analyst & File Co-Pilot")
-st.write("Orchestrating state-of-the-art analytical data pipelines via LangChain Expression Language (LCEL)")
-st.markdown("---")
+def get_model_name():
+    try:
+        return st.secrets.get("GROQ_MODEL", DEFAULT_MODEL)
+    except Exception:
+        return os.environ.get("GROQ_MODEL", DEFAULT_MODEL)
 
-col1, col2 = st.columns([0.5, 0.5])
-runtime_csv_target = None
 
-# --- COLUMN 1: ACTIVE DATASET ISOLATION & PREVIEW ---
-with col1:
-    st.header("📊 Active Dataset Preview")
-    if uploaded_file is not None:
+def split_columns(df):
+    nums = df.select_dtypes(include="number").columns.tolist()
+    cats = [c for c in df.columns if c not in nums]
+    return nums, cats
+
+
+def cleanup_old_file():
+    path = st.session_state.csv_path
+    if path and os.path.exists(path):
         try:
-            df = pd.read_csv(uploaded_file)
-            st.success(f"📦 Source Data Ingested: '{uploaded_file.name}' — Discovered {len(df)} records.")
-            st.dataframe(df.head(12), use_container_width=True)
-            
-            runtime_csv_target = f"secure_target_{st.session_state.session_token}.csv"
-            with open(runtime_csv_target, "wb") as secure_stream:
-                secure_stream.write(uploaded_file.getbuffer())
-                
-        except Exception as ingestion_error:
-            st.error(f"🚨 Structural Ingestion Fault: {ingestion_error}")
-    else:
-        st.info("💡 Storage Core Standby: Please upload a .csv data array to initialize validation.")
+            os.remove(path)
+        except OSError:
+            pass
 
-# --- COLUMN 2: ANALYTICAL AGENT CONTROL SYSTEM ---
-with col2:
-    st.header("⚙️ AI Agent Control Center")
-    st.write("Transmit high-priority optimization directives to your analytics execution layer:")
-    
-    user_directive = st.text_area(
-        "Directives",
-        placeholder="e.g., Run a deep statistical variance audit on the active rows...",
-        height=150,
-        label_visibility="collapsed"
+
+def ingest(uploaded):
+    """Load the CSV once per distinct upload; reset all derived state."""
+    sig = (uploaded.name, uploaded.size)
+    if st.session_state.file_sig == sig:
+        return
+    df = pd.read_csv(uploaded)
+    cleanup_old_file()
+    path = os.path.join(
+        tempfile.gettempdir(), f"secure_target_{st.session_state.session_token}.csv"
     )
-    
-    execute_pipeline = st.button("Execute Pipeline Analysis 🚀", use_container_width=True)
-    
-    if execute_pipeline:
-        if runtime_csv_target is None or not os.path.exists(runtime_csv_target):
-            st.error("❌ Execution Refused: The processing matrix pipeline is empty.")
-        elif not user_directive.strip():
-            st.warning("⚠️ Direction Missing: Please provide text instructions.")
-        else:
-            with st.spinner("Processing deep analytical arrays via high-speed Groq cloud nodes..."):
-                try:
-                    # 1. Trigger backend engine logic
-                    backend_output = expert_data_analyst_engine.invoke({"csv_filename": runtime_csv_target})
-                    
-                    if "error" in backend_output:
-                        st.error(backend_output["error"])
-                    else:
-                        # Save structural metadata layout to session state
-                        st.session_state.active_matrix_data = backend_output
-                        
-                        # Isolate texts securely for prompt ingestion
-                        summary_payload = f"""
-======= DATASET METADATA =======
-Total Records Isolation: {backend_output['total_records']}
-Discovered Column Layout: {backend_output['column_layout']}
+    df.to_csv(path, index=False)
+    st.session_state.update(
+        file_sig=sig, df=df, csv_path=path, backend=None, payload=None, report=None
+    )
 
-======= SUMMARY STATISTICS =======
-{backend_output['summary_text']}
 
-======= CORRELATION MATRIX COEFFS =======
-{backend_output['correlation_text']}
-"""
-                        # Slice securely under token caps
-                        if len(summary_payload) > 8000:
-                            summary_payload = summary_payload[:8000] + "\n\n[...Truncated...]"
+def prep_x(df, x):
+    """Parse date-like object columns so trend charts sort properly."""
+    out = df.copy()
+    if out[x].dtype == object:
+        parsed = pd.to_datetime(out[x], errors="coerce")
+        if parsed.notna().mean() > 0.8:
+            out[x] = parsed
+    return out.sort_values(x)
 
-                        st.info("🧠 Syncing metrics to cloud infrastructure for executive synthesis...")
-                        
-                        # 2. Complete LCEL pipeline execution
-                        groq_vault_key = st.secrets["GROQ_API_KEY"]
-                        model_layer = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=groq_vault_key, temperature=0.1)
-                        
-                        report_prompt = ChatPromptTemplate.from_template("""SYSTEM: You are a Lead Data Scientist. Compile a concise engineering report using the following headers and bullets:
+
+def build_payload(b):
+    text = (
+        "======= DATASET METADATA =======\n"
+        f"Total Records: {b['total_records']}\n"
+        f"Columns: {b['column_layout']}\n\n"
+        "======= SUMMARY STATISTICS =======\n"
+        f"{b['summary_text']}\n\n"
+        "======= CORRELATION MATRIX =======\n"
+        f"{b['correlation_text']}\n"
+    )
+    if len(text) > MAX_PAYLOAD_CHARS:
+        text = text[:MAX_PAYLOAD_CHARS] + "\n\n[...Truncated...]"
+    return text
+
+
+def run_llm(directive, payload):
+    key = get_api_key()
+    if not key:
+        raise RuntimeError("GROQ_API_KEY missing from st.secrets or environment.")
+    llm = ChatGroq(model=get_model_name(), groq_api_key=key, temperature=0.1)
+    prompt = ChatPromptTemplate.from_template(
+        """SYSTEM: You are a Lead Data Scientist. Compile a concise engineering report using these headers and bullets:
 1. EXECUTIVE DATA SUMMARY
-2. CORE DIFFERENTIAL ANALYSIS (Quantified values)
-3. STATISTICAL OBSERVATIONS (Non-basic variance/skewness)
+2. CORE DIFFERENTIAL ANALYSIS (quantified values)
+3. STATISTICAL OBSERVATIONS (non-basic variance/skewness)
 4. CORRELATIONS & RELATIONSHIPS
 5. STRATEGIC INSIGHTS
+Only state what the data supports. Do not invent numbers.
 
 USER DIRECTIVE: {directive}
 
 DATASET PAYLOAD:
-{payload}""")
-                        
-                        orchestration_chain = report_prompt | model_layer | StrOutputParser()
-                        compiled_insights = orchestration_chain.invoke({
-                            "directive": user_directive,
-                            "payload": summary_payload
-                        })
-                        
-                        st.success("🎯 Cloud Analytics Cycle Complete!")
-                        st.text_area("📋 Compiled Lead Data Scientist Report:", compiled_insights, height=320)
-                        
-                except Exception as runtime_fault:
-                    st.error(f"🚨 Cloud Pipeline Exception: {runtime_fault}")
+{payload}"""
+    )
+    out = (prompt | llm | StrOutputParser()).invoke(
+        {"directive": directive, "payload": payload}
+    )
+    # Qwen3 emits <think>...</think>; strip it.
+    return re.sub(r"<think>.*?</think>", "", out, flags=re.DOTALL).strip()
 
-# --- 5. HIGH-RESOLUTION FULL-WIDTH VISUAL DISPLAY BLOCK (FULLY DYNAMIC LAYER) ---
-if st.session_state.active_matrix_data and uploaded_file is not None:
-    st.markdown("---")
-    st.header("📈 Interactive Analytics Matrix Profile (Fully Customizable Grid Output)")
-    
-    meta = st.session_state.active_matrix_data
-    plot_df = pd.read_csv(meta["file_path"])
-    all_cols = meta["column_layout"]
-    num_cols = meta["numeric_columns"]
-    
-    # 🎛️ NEW: DYNAMIC USER CONTROL PANELS
-    st.markdown("### 🎛️ Chart Layout Controls")
-    ctrl_col1, ctrl_col2, ctrl_col3 = st.columns(3)
-    
-    with ctrl_col1:
-        selected_x_axis = st.selectbox("Select X-Axis (Timeline / Base Dimension)", options=all_cols, index=0)
-    with ctrl_col2:
-        selected_y_features = st.multiselect("Select Trend Line Features (Y-Axis)", options=num_cols, default=num_cols[:2])
-    with ctrl_col3:
-        scatter_target_y = st.selectbox("Select Scatter Target Variable (Y-Axis)", options=num_cols, index=min(1, len(num_cols)-1))
 
-    st.markdown("---")
-    
-    # Render dynamic grid partitions natively based on widget selections
-    v_col1, v_col2 = st.columns(2)
-    
-    with v_col1:
-        # 1. Continuous Trend Chart (Fully Dynamic)
-        if selected_y_features:
-            fig_trend = px.line(plot_df, x=selected_x_axis, y=selected_y_features, title=f"1. Dynamic Trend: Custom Dimensions over {selected_x_axis}", markers=True)
-            fig_trend.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-            st.plotly_chart(fig_trend, use_container_width=True)
+# ----------------------------------------------------------------------------
+# CHART FACTORY
+# ----------------------------------------------------------------------------
+def build_chart(kind, df, x, ys, cat, color_by, theme):
+    """Return (figure, message). Never raises into the UI."""
+    nums, cats = split_columns(df)
+    plot_df = df.sample(MAX_PLOT_ROWS, random_state=1) if len(df) > MAX_PLOT_ROWS else df
+    ys = [y for y in ys if y in nums] or nums[:2]
+    color = None if color_by == "None" else color_by
+    fig = None
+
+    try:
+        if kind in ("Line Trend", "Area Trend"):
+            if not ys:
+                return None, "No numeric columns available."
+            d = prep_x(plot_df, x)
+            fn = px.line if kind == "Line Trend" else px.area
+            kwargs = {"markers": True} if kind == "Line Trend" else {}
+            fig = fn(d, x=x, y=ys, title=f"{kind}: {', '.join(ys)} over {x}", **kwargs)
+
+        elif kind == "Bar (Feature Means)":
+            feats = ys or nums
+            m = plot_df[feats].mean().reset_index()
+            m.columns = ["Feature", "Mean"]
+            fig = px.bar(m, x="Feature", y="Mean", color="Feature", title="Feature Means")
+
+        elif kind == "Grouped Bar (by Category)":
+            if not cats or not ys:
+                return None, "Needs at least one categorical and one numeric column."
+            top = plot_df[cat].value_counts().head(15).index
+            g = plot_df[plot_df[cat].isin(top)].groupby(cat)[ys].mean().reset_index()
+            g = g.melt(id_vars=cat, var_name="Feature", value_name="Mean")
+            fig = px.bar(g, x=cat, y="Mean", color="Feature", barmode="group",
+                         title=f"Mean of features by {cat} (top 15)")
+
+        elif kind in ("Box (Outliers)", "Violin (Distribution)"):
+            if not ys:
+                return None, "No numeric columns available."
+            long = plot_df[ys].melt(var_name="Feature", value_name="Value")
+            fn = px.box if kind.startswith("Box") else px.violin
+            kwargs = {} if kind.startswith("Box") else {"box": True}
+            fig = fn(long, x="Feature", y="Value", color="Feature", title=kind, **kwargs)
+
+        elif kind == "Scatter (Relationship)":
+            if len(nums) < 2:
+                return None, "Needs at least two numeric columns."
+            sx = x if x in nums else nums[0]
+            sy = next((y for y in ys if y != sx), next(n for n in nums if n != sx))
+            try:
+                fig = px.scatter(plot_df, x=sx, y=sy, color=color, trendline="ols",
+                                 title=f"{sy} vs {sx}", opacity=0.7)
+            except Exception:  # statsmodels missing
+                fig = px.scatter(plot_df, x=sx, y=sy, color=color,
+                                 title=f"{sy} vs {sx}", opacity=0.7)
+
+        elif kind == "Histogram":
+            if not ys:
+                return None, "No numeric columns available."
+            fig = px.histogram(plot_df, x=ys[0], color=color, marginal="box",
+                               nbins=40, title=f"Distribution of {ys[0]}")
+
+        elif kind == "Donut":
+            if not cats:
+                return None, "No categorical column available."
+            if ys:
+                agg = plot_df.groupby(cat)[ys[0]].sum().nlargest(10).reset_index()
+                fig = px.pie(agg, names=cat, values=ys[0], hole=0.6,
+                             title=f"{ys[0]} by {cat} (top 10)")
+            else:
+                agg = plot_df[cat].value_counts().head(10).reset_index()
+                agg.columns = [cat, "Count"]
+                fig = px.pie(agg, names=cat, values="Count", hole=0.6,
+                             title=f"{cat} composition (top 10)")
+            fig.update_traces(textposition="inside", textinfo="percent+label")
+
+        elif kind == "Sunburst":
+            usable = [c for c in cats if 1 < plot_df[c].nunique() <= 30][:2]
+            if not usable or not ys:
+                return None, "Needs low-cardinality categorical columns and a numeric column."
+            s = plot_df[usable + [ys[0]]].copy()
+            s[usable] = s[usable].fillna("N/A").astype(str)
+            s = s[s[ys[0]].fillna(0) > 0]
+            fig = px.sunburst(s, path=usable, values=ys[0],
+                              title=f"Hierarchy: {' > '.join(usable)} ({ys[0]})")
+
+        elif kind == "Correlation Heatmap":
+            if len(nums) < 2:
+                return None, "Needs at least two numeric columns."
+            corr = plot_df[nums].corr()
+            fig = px.imshow(corr, text_auto=".2f", zmin=-1, zmax=1,
+                            color_continuous_scale="RdBu_r", aspect="auto",
+                            title="Correlation Matrix")
+
+        elif kind == "Missing Values":
+            miss = df.isna().sum().reset_index()
+            miss.columns = ["Column", "Missing"]
+            miss["Percent"] = (miss["Missing"] / len(df) * 100).round(2)
+            fig = px.bar(miss.sort_values("Missing", ascending=False), x="Column",
+                         y="Percent", hover_data=["Missing"],
+                         title="Missing Values (% of rows)")
+
+    except Exception as e:
+        return None, f"Chart failed: {e}"
+
+    if fig is not None:
+        fig.update_layout(template=theme, paper_bgcolor="rgba(0,0,0,0)",
+                          plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=60, l=10, r=10, b=10))
+    return fig, None
+
+
+def render(kind, df, x, ys, cat, color_by, theme, key):
+    fig, msg = build_chart(kind, df, x, ys, cat, color_by, theme)
+    if msg:
+        st.warning(msg)
+    elif fig is not None:
+        st.plotly_chart(fig, use_container_width=True, key=key)
+
+
+# ----------------------------------------------------------------------------
+# SIDEBAR
+# ----------------------------------------------------------------------------
+st.sidebar.title("📁 Control Panel Workspace")
+st.sidebar.write("Ingest structured data (CSV only).")
+uploaded_file = st.sidebar.file_uploader("Upload", type=["csv"], label_visibility="collapsed")
+human_approval = st.sidebar.checkbox(
+    "Require Manual Human Approval", value=True,
+    help="Review the exact payload before it is sent to the cloud LLM.",
+)
+st.sidebar.markdown("---")
+st.sidebar.write(f"Inference: **Groq** · model `{get_model_name()}`")
+
+if uploaded_file is not None:
+    try:
+        ingest(uploaded_file)
+    except Exception as e:
+        st.sidebar.error(f"🚨 Ingestion fault: {e}")
+
+df = st.session_state.df
+
+# ----------------------------------------------------------------------------
+# MAIN
+# ----------------------------------------------------------------------------
+st.title("✨ Enterprise Data Analyst & File Co-Pilot")
+st.caption("Analytical pipelines orchestrated via LangChain Expression Language (LCEL)")
+st.markdown("---")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.header("📊 Active Dataset Preview")
+    if df is not None:
+        st.success(f"📦 '{uploaded_file.name if uploaded_file else 'dataset'}' — {len(df):,} rows × {df.shape[1]} columns")
+        st.dataframe(df.head(12), use_container_width=True)
+    else:
+        st.info("💡 Upload a .csv to begin.")
+
+with col2:
+    st.header("⚙️ AI Agent Control Center")
+    directive = st.text_area(
+        "Directives",
+        placeholder="e.g., Run a deep statistical variance audit on the active rows...",
+        height=150,
+        label_visibility="collapsed",
+    )
+
+    if st.button("Execute Pipeline Analysis 🚀", use_container_width=True):
+        if df is None:
+            st.error("❌ No dataset loaded.")
+        elif not directive.strip():
+            st.warning("⚠️ Provide an instruction first.")
         else:
-            st.warning("⚠️ Please select at least one feature for the Trend Line chart.")
-        
-        # 2. Statistical Distribution Chart (Fully Dynamic)
-        fig_dist = px.histogram(plot_df, x=selected_y_features if selected_y_features else num_cols[:1], barmode="overlay", title="3. Distribution Density Profile")
-        fig_dist.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(fig_dist, use_container_width=True)
+            with st.spinner("Running local analytics engine..."):
+                try:
+                    backend = expert_data_analyst_engine.invoke(
+                        {"csv_filename": st.session_state.csv_path}
+                    )
+                    if "error" in backend:
+                        st.error(backend["error"])
+                    else:
+                        st.session_state.backend = backend
+                        st.session_state.payload = build_payload(backend)
+                        st.session_state.report = None
+                        st.session_state.directive = directive
+                        if not human_approval:
+                            st.session_state.report = run_llm(directive, st.session_state.payload)
+                except Exception as e:
+                    st.error(f"🚨 Pipeline exception: {e}")
 
-    with v_col2:
-        # 3. Dimension Comparison Chart (Fully Dynamic)
-        features_to_average = selected_y_features if selected_y_features else num_cols
-        mean_df = plot_df[features_to_average].mean().reset_index()
-        mean_df.columns = ["Feature", "Mean Magnitude"]
-        fig_bar = px.bar(mean_df, x="Feature", y="Mean Magnitude", color="Feature", title="2. Dimension Comparison Matrix (Active Selections)")
-        fig_bar.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(fig_bar, use_container_width=True)
-        
-        # 4. Dimensional Scatter Chart (Fully Dynamic)
-        fig_scatter = px.scatter(plot_df, x=selected_x_axis, y=scatter_target_y, title=f"4. Dimensional Relationship ({selected_x_axis} vs {scatter_target_y})")
-        fig_scatter.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-        fig_scatter.update_traces(marker=dict(size=12, symbol="diamond", color="crimson"))
-        st.plotly_chart(fig_scatter, use_container_width=True)
+    # Approval gate: payload persists in session state, so this survives reruns.
+    if human_approval and st.session_state.payload and not st.session_state.report:
+        with st.expander("🔒 Review payload before it leaves your machine", expanded=True):
+            st.code(st.session_state.payload)
+        if st.button("✅ Approve & send to Groq", use_container_width=True):
+            with st.spinner("Synthesizing report..."):
+                try:
+                    st.session_state.report = run_llm(
+                        st.session_state.get("directive", directive), st.session_state.payload
+                    )
+                except Exception as e:
+                    st.error(f"🚨 Cloud exception: {e}")
+
+    if st.session_state.report:
+        st.success("🎯 Analysis cycle complete")
+        with st.container(height=320):
+            st.markdown(st.session_state.report)
+        st.download_button("⬇️ Download report", st.session_state.report,
+                           file_name="analyst_report.md", mime="text/markdown")
+
+# ----------------------------------------------------------------------------
+# VISUAL STUDIO
+# ----------------------------------------------------------------------------
+if df is not None:
+    st.markdown("---")
+    st.header("📈 Interactive Visual Studio")
+    nums, cats = split_columns(df)
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        x_axis = st.selectbox("X-Axis / Timeline", df.columns.tolist(), index=0)
+        theme = st.selectbox("Theme", THEMES)
+    with c2:
+        ys = st.multiselect("Numeric features (Y)", nums, default=nums[:2])
+        cat = st.selectbox("Category dimension", cats or df.columns.tolist())
+    with c3:
+        color_by = st.selectbox("Color by (scatter/histogram)", ["None"] + cats)
+
+    tab_studio, tab_gallery = st.tabs(["🎛️ Dual-Panel Studio", "🖼️ Auto Gallery"])
+
+    with tab_studio:
+        left, right = st.columns(2)
+        with left:
+            kind_l = st.selectbox("Left panel", CHART_TYPES, index=0, key="kl")
+            render(kind_l, df, x_axis, ys, cat, color_by, theme, "chart_left")
+        with right:
+            kind_r = st.selectbox("Right panel", CHART_TYPES, index=4, key="kr")
+            render(kind_r, df, x_axis, ys, cat, color_by, theme, "chart_right")
+
+    with tab_gallery:
+        st.caption("Six core views of your data, generated with the current selections.")
+        gallery = ["Correlation Heatmap", "Histogram", "Box (Outliers)",
+                   "Scatter (Relationship)", "Donut", "Missing Values"]
+        for i in range(0, len(gallery), 2):
+            ga, gb = st.columns(2)
+            for col, kind in zip((ga, gb), gallery[i:i + 2]):
+                with col:
+                    render(kind, df, x_axis, ys, cat, color_by, theme, f"gal_{kind}")
