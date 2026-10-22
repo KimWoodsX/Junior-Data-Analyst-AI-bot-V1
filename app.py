@@ -298,14 +298,12 @@ def render(kind, df, x, ys, cat, color_by, theme, key):
 # SIDEBAR
 # ----------------------------------------------------------------------------
 st.sidebar.title("📁 Control Panel Workspace")
-st.sidebar.write("Ingest structured data (CSV only).")
+st.sidebar.write("CSV ONLY")
 uploaded_file = st.sidebar.file_uploader("Upload", type=["csv"], label_visibility="collapsed")
 human_approval = st.sidebar.checkbox(
     "Require Manual Human Approval", value=True,
     help="Review the exact payload before it is sent to the cloud LLM.",
 )
-st.sidebar.markdown("---")
-st.sidebar.write(f"Inference: **Groq** · model `{get_model_name()}`")
 
 if uploaded_file is not None:
     try:
@@ -320,8 +318,7 @@ df = st.session_state.df
 # ----------------------------------------------------------------------------
 # MAIN
 # ----------------------------------------------------------------------------
-st.title("✨ Enterprise Data Analyst & File Co-Pilot")
-st.caption("Analytical pipelines orchestrated via LangChain Expression Language (LCEL)")
+st.title("K1 Data Analyst Junior Bot")
 st.markdown("---")
 
 col1, col2 = st.columns(2)
