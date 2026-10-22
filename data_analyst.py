@@ -146,6 +146,127 @@ def _date_block(date_cols: dict) -> str:
     return _cap("\n".join(lines))
 
 
+def _fmt(x: float, year: bool = False) -> str:
+    if year:
+        return f"{x:.0f}"
+    return f"{x:,.1f}" if abs(x) < 1e6 else f"{x:,.0f}"
+
+
+def _strength(r: float) -> str:
+    a = abs(r)
+    for limit, word in ((0.1, "negligible"), (0.3, "weak"), (0.5, "moderate"), (0.7, "strong")):
+        if a < limit:
+            return word
+    return "very strong"
+
+
+def _narrative(df, numeric_cols, text_cols, date_cols, id_cols, skipped, group_cats) -> str:
+    """Plain-English prose summary, generated locally. No tables, no LLM."""
+    n, c = len(df), df.shape[1]
+    P = []
+
+    dup = int(df.duplicated().sum())
+    P.append(f"**Overview.** The dataset contains {n:,} records across {c} columns"
+             + (f", including {dup} duplicate rows." if dup else " with no duplicate rows."))
+
+    miss = df.isna().sum()
+    miss = miss[miss > 0].sort_values(ascending=False)
+    if miss.empty:
+        P.append("**Data quality.** Nothing is missing, so every column is complete.")
+    else:
+        parts = ", ".join(f"{k} ({v / n * 100:.1f}%)" for k, v in miss.head(5).items())
+        P.append(f"**Data quality.** Some values are missing, mainly in {parts}.")
+
+    sents = []
+    for col in numeric_cols[:6]:
+        s = df[col].dropna()
+        if s.empty:
+            continue
+        year = bool(s.min() >= 1800 and s.max() <= 2100 and (s % 1 == 0).all())
+        t = (f"{col} averages {_fmt(s.mean(), year)} (typical value {_fmt(s.median(), year)}), "
+             f"ranging from {_fmt(s.min(), year)} to {_fmt(s.max(), year)}")
+        sk = s.skew()
+        if abs(sk) > 1:
+            t += f", and leans toward {'high' if sk > 0 else 'low'} values"
+        sents.append(t + ".")
+    if sents:
+        P.append("**Numbers.** " + " ".join(sents))
+
+    cat_sents = []
+    for col in text_cols:
+        s = df[col].dropna().astype(str)
+        if s.empty or s.str.len().mean() > MAX_TEXT_LEN or s.nunique() > MAX_CAT_UNIQUE:
+            continue
+        vc = s.value_counts()
+        if s.nunique() == 1:
+            cat_sents.append(f"{col} has a single value ({vc.index[0]}).")
+        else:
+            cat_sents.append(f"{col} has {s.nunique()} categories, led by {vc.index[0]} "
+                             f"({vc.iloc[0] / len(s) * 100:.0f}%).")
+    if cat_sents:
+        P.append("**Categories.** " + " ".join(cat_sents[:8]))
+
+    g_sents = []
+    for cat in group_cats[:2]:
+        for num in numeric_cols[:2]:
+            m = df.groupby(cat)[num].mean().dropna()
+            if len(m) < 2:
+                continue
+            hi, lo = m.idxmax(), m.idxmin()
+            g_sents.append(f"By {cat}, average {num} is highest for {hi} ({_fmt(m[hi])}) "
+                           f"and lowest for {lo} ({_fmt(m[lo])}).")
+    if g_sents:
+        P.append("**Comparisons.** " + " ".join(g_sents))
+
+    out = []
+    for col in numeric_cols:
+        s = df[col].dropna()
+        if s.empty:
+            continue
+        q1, q3 = s.quantile(0.25), s.quantile(0.75)
+        iqr = q3 - q1
+        if iqr == 0:
+            continue
+        k = int(((s < q1 - 1.5 * iqr) | (s > q3 + 1.5 * iqr)).sum())
+        if k:
+            out.append(f"{col} ({k})")
+    P.append("**Unusual values.** " + (f"Outliers were found in {', '.join(out)}." if out
+                                       else "No extreme outliers were found."))
+
+    if date_cols:
+        d = []
+        for col, s in date_cols.items():
+            s = s.dropna()
+            if not s.empty:
+                d.append(f"{col} runs from {s.min().date()} to {s.max().date()}")
+        if d:
+            P.append("**Dates.** " + "; ".join(d) + ".")
+
+    if len(numeric_cols) >= 2:
+        corr = df[numeric_cols].corr()
+        best = None
+        for i, a in enumerate(numeric_cols):
+            for b in numeric_cols[i + 1:]:
+                r = corr.loc[a, b]
+                if pd.notna(r) and (best is None or abs(r) > abs(best[2])):
+                    best = (a, b, float(r))
+        if best:
+            a, b, r = best
+            if abs(r) < CORR_THRESHOLD:
+                P.append(f"**Relationships.** None of the numeric columns are meaningfully related. "
+                         f"The closest pair is {a} and {b} ({_strength(r)}, r = {r:+.2f}).")
+            else:
+                move = "rise together" if r > 0 else "move in opposite directions"
+                P.append(f"**Relationships.** {a} and {b} {move} ({_strength(r)}, r = {r:+.2f}).")
+
+    left_out = list(id_cols) + list(skipped)
+    if left_out:
+        P.append(f"**Not analyzed.** {', '.join(map(str, left_out))} are identifiers, row counters, "
+                 f"or free text, so they were left out of the statistics.")
+
+    return "\n\n".join(P)
+
+
 @tool
 def expert_data_analyst_engine(csv_filename: str) -> dict:
     """
@@ -186,6 +307,9 @@ def expert_data_analyst_engine(csv_filename: str) -> dict:
             "group_text": _group_block(df, group_cats, numeric_cols),
             "outlier_text": _outlier_block(df, numeric_cols),
             "date_text": _date_block(date_cols),
+            "narrative_text": _narrative(
+                df, numeric_cols, text_cols, date_cols, id_cols, skipped, group_cats
+            ),
             "skipped_note": (
                 f"Excluded ID-like numeric columns: {id_cols}. "
                 f"Skipped identifier/free-text/high-cardinality columns: {skipped}."
