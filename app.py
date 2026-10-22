@@ -138,6 +138,7 @@ def build_payload(b):
         ("GROUP COMPARISONS", b.get("group_text")),
         ("OUTLIERS", b.get("outlier_text")),
         ("DATE RANGES", b.get("date_text")),
+        ("TIME TREND", b.get("trend_text")),
         ("CORRELATIONS", b["correlation_text"]),
     ]
     text = "\n\n".join(f"======= {t} =======\n{body}" for t, body in sections if body)
@@ -146,7 +147,7 @@ def build_payload(b):
     return text
 
 
-def run_llm(directive, payload):
+def run_llm(directive, payload, context=""):
     key = get_api_key()
     if not key:
         raise RuntimeError("GROQ_API_KEY missing from st.secrets or environment.")
@@ -158,15 +159,18 @@ def run_llm(directive, payload):
 3. STATISTICAL OBSERVATIONS (non-basic variance/skewness)
 4. CORRELATIONS & RELATIONSHIPS
 5. STRATEGIC INSIGHTS
-Only state what the data supports. Do not invent numbers.
+Only state what the data supports. Do not invent numbers. Do not assume units: use the units in USER CONTEXT, and if none are given say the units are unconfirmed. Treat near-duplicate measures as redundant, not as findings. Do not forecast or predict beyond the data.
 
 USER DIRECTIVE: {directive}
+
+USER CONTEXT: {context}
 
 DATASET PAYLOAD:
 {payload}"""
     )
     out = (prompt | llm | StrOutputParser()).invoke(
-        {"directive": directive, "payload": payload}
+        {"directive": directive, "payload": payload,
+         "context": context.strip() or "none provided"}
     )
     # Qwen3 emits <think>...</think>; strip it.
     return re.sub(r"<think>.*?</think>", "", out, flags=re.DOTALL).strip()
@@ -338,6 +342,11 @@ with col2:
         height=150,
         label_visibility="collapsed",
     )
+    context_note = st.text_input(
+        "Context for the analyst (optional)",
+        placeholder="e.g., daily Nairobi weather, temperatures in °F, source: Visual Crossing",
+        help="Units and background the data itself can't tell the AI. Sent with the payload.",
+    )
 
     if st.button("Execute Pipeline Analysis 🚀", use_container_width=True):
         if df is None:
@@ -357,8 +366,11 @@ with col2:
                         st.session_state.payload = build_payload(backend)
                         st.session_state.report = None
                         st.session_state.directive = directive
+                        st.session_state.context = context_note
                         if not human_approval:
-                            st.session_state.report = run_llm(directive, st.session_state.payload)
+                            st.session_state.report = run_llm(
+                                directive, st.session_state.payload, context_note
+                            )
                 except Exception as e:
                     st.error(f"🚨 Pipeline exception: {e}")
 
@@ -379,7 +391,9 @@ with col2:
             with st.spinner("Synthesizing report..."):
                 try:
                     st.session_state.report = run_llm(
-                        st.session_state.get("directive", directive), st.session_state.payload
+                        st.session_state.get("directive", directive),
+                        st.session_state.payload,
+                        st.session_state.get("context", ""),
                     )
                 except Exception as e:
                     st.error(f"🚨 Cloud exception: {e}")
