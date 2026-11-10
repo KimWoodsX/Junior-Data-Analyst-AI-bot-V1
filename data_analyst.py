@@ -1,16 +1,12 @@
-# ----------------------------------------------------------------------------
-# MAIN
-# ----------------------------------------------------------------------------
-st.title("K1 Data Analyst")
+import os
+import re
+import warnings
 
-if df is None:
-    st.info("💡 Upload a CSV in the sidebar to start. Your data stays in memory only, and when you remove the file, everything is cleared.")
-    st.stop()
+import numpy as np
+import pandas as pd
+from langchain_core.tools import tool
 
-st.caption(f"📦 {st.session_state.file_name} · {len(df):,} rows × {df.shape[1]} columns")
-
-# ------------------------------------------------------------------ 1. CHAT AREA
-st.subheader("💬 Chat & Analysis")
+print("⚡ Initializing Data Analyst Backend...")
 
 gate_open = (not human_approval) or st.session_state.approved
 can_chat = has_key and gate_open and st.session_state.payload is not None
