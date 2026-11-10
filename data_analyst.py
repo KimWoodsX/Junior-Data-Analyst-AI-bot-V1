@@ -15,7 +15,6 @@ from langchain_core.tools import tool
 
 # ----------------------------------------------------------------------------
 # CONFIGURATION CONSTANTS
-# ----------------------------------------------------------------------------
 MAX_CAT_UNIQUE = 20        # Above this, text is treated as identifier/free text
 MAX_GROUP_UNIQUE = 12      # Max unique categories used for group comparisons
 MAX_TEXT_LEN = 60          # Average string length above this = free text
